@@ -1,12 +1,19 @@
 from celery import shared_task
 import ccxt
 import pandas as pd
+import numpy as np
+import talib
 import time
 from .models import BotConfig, TradeLog, CoinEvaluation
 
 @shared_task
 def run_trading_bot():
     bot_config = BotConfig.objects.first()
+    
+    if not bot_config:
+        print("BotConfig is not set. Please configure it in the admin panel.")
+        return
+
     binance = ccxt.binance({
         'apiKey': bot_config.api_key,
         'secret': bot_config.secret,
@@ -18,27 +25,14 @@ def run_trading_bot():
         return [symbol for symbol in tickers.keys() if symbol.endswith('/USDT')]
 
     def get_rsi(data, period=14):
-        delta = data['close'].diff()
-        gain = (delta.where(delta > 0, 0)).fillna(0)
-        loss = (-delta.where(delta < 0, 0)).fillna(0)
-        average_gain = gain.rolling(window=period).mean()
-        average_loss = loss.rolling(window=period).mean()
-        rs = average_gain / average_loss
-        rsi = 100 - (100 / (1 + rs))
-        return rsi
+        return talib.RSI(data['close'], timeperiod=period)
 
     def get_macd(data, fast_period=12, slow_period=26, signal_period=9):
-        fast_ema = data['close'].ewm(span=fast_period, min_periods=fast_period).mean()
-        slow_ema = data['close'].ewm(span=slow_period, min_periods=slow_period).mean()
-        macd = fast_ema - slow_ema
-        signal = macd.ewm(span=signal_period, min_periods=signal_period).mean()
+        macd, signal, _ = talib.MACD(data['close'], fastperiod=fast_period, slowperiod=slow_period, signalperiod=signal_period)
         return macd, signal
 
     def get_bollinger_bands(data, period=20, num_std=2):
-        sma = data['close'].rolling(window=period).mean()
-        std = data['close'].rolling(window=period).std()
-        upper_band = sma + (std * num_std)
-        lower_band = sma - (std * num_std)
+        upper_band, middle_band, lower_band = talib.BBANDS(data['close'], timeperiod=period, nbdevup=num_std, nbdevdn=num_std)
         return upper_band, lower_band
 
     def evaluate_coin(symbol):
@@ -68,6 +62,12 @@ def run_trading_bot():
         if usdt_balance > 10:  # Ensure there's enough balance to trade
             amount = usdt_balance / binance.fetch_ticker(symbol)['last']
             order = binance.create_market_buy_order(symbol, amount)
+            TradeLog.objects.create(
+                coin=symbol,
+                buy_price=order['price'],
+                sell_price=None,
+                profit=None
+            )
             return order
         return None
 
@@ -80,6 +80,11 @@ def run_trading_bot():
                 coin_balance = balance['total'][symbol.split('/')[0]]
                 if coin_balance > 0:
                     order = binance.create_market_sell_order(symbol, coin_balance)
+                    profit = (order['price'] - buy_price) * coin_balance
+                    TradeLog.objects.filter(coin=symbol, buy_price=buy_price).update(
+                        sell_price=order['price'],
+                        profit=profit
+                    )
                     return order
             time.sleep(60)
 
