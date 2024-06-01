@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trading Bot Dashboard</title>
+</head>
+<body>
+    <h1>Trading Bot Dashboard</h1>
+    <h2>Trade Logs</h2>
+    <table>
+        <tr>
+            <th>Coin</th>
+            <th>Buy Price</th>
+            <th>Sell Price</th>
+            <th>Profit</th>
+            <th>Time</th>
+        </tr>
+        {% for trade in trades %}
+        <tr>
+            <td>{{ trade.coin }}</td>
+            <td>{{ trade.buy_price }}</td>
+            <td>{{ trade.sell_price }}</td>
+            <td>{{ trade.profit }}</td>
+            <td>{{ trade.trade_time }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <h2>Coin Evaluations</h2>
+    <table>
+        <tr>
+            <th>Coin</th>
+            <th>RSI</th>
+            <th>MACD</th>
+            <th>Bollinger Lower</th>
+            <th>Timestamp</th>
+        </tr>
+        {% for eval in evaluations %}
+        <tr>
+            <td>{{ eval.coin }}</td>
+            <td>{{ eval.rsi }}</td>
+            <td>{{ eval.macd }}</td>
+            <td>{{ eval.bollinger_lower }}</td>
+            <td>{{ eval.timestamp }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
