@@ -1,4 +1,4 @@
-# ALLCT_in_Django# Django Trading Bot Project
+# ALLCT_in_Django
 
 This Django project implements a cryptocurrency trading bot that automatically performs trades on the Binance exchange. The bot uses various technical analysis indicators to evaluate trading opportunities and execute trades. It also includes user authentication with JWT for secure access.
 
